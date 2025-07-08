@@ -1,4 +1,4 @@
-sudo apt install libjson-c-dev
-sudo apt install gcc (rodar c)
+- sudo apt install libjson-c-dev
+- sudo apt install gcc (rodar c)
 - As outras libs já são do Ubunto
-Comando para executar: gcc -o logger_attacg logger_attach.c -ljson-c
+- Comando para executar: gcc -o logger_attacg logger_attach.c -ljson-c
