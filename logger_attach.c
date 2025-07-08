@@ -9,13 +9,16 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
-#include <json-c/json.h> // Biblioteca para JSON
+#include <json-c/json.h>
 
 const char *syscall_names[450] = {
     [0] = "read",
     [1] = "write",
     [2] = "open",
     [3] = "close",
+    [5] = "fstat",     
+    [8] = "lseek",     
+    [16] = "ioctl",
     [60] = "exit",
     [39] = "getpid",
     [62] = "kill",
@@ -34,21 +37,14 @@ void get_timestamp(char *buffer, size_t size) {
     strftime(buffer, size, "%Y-%m-%d %H:%M:%S", tm_info);
 }
 
-// Loga a syscall no terminal e no arquivo JSON
+// Loga a syscall
 void log_syscall(pid_t pid, struct user_regs_struct *regs, int entering, FILE *json_file) {
     char timestamp[64];
     get_timestamp(timestamp, sizeof(timestamp));
 
     const char *name = syscall_names[regs->orig_rax] ? syscall_names[regs->orig_rax] : "unknown";
 
-    if (entering) {
-        printf("[%s] PID %d -> [SYSCALL ENTER] %s (%lld)\n", timestamp, pid, name, regs->orig_rax);
-        printf("    Args: rdi=%lld, rsi=%lld, rdx=%lld\n", regs->rdi, regs->rsi, regs->rdx);
-    } else {
-        printf("[%s] PID %d -> [SYSCALL EXIT]  %s => Retorno: %lld\n\n", timestamp, pid, name, regs->rax);
-    }
-
-    // Criar objeto JSON
+    // JSON
     struct json_object *obj = json_object_new_object();
     json_object_object_add(obj, "timestamp", json_object_new_string(timestamp));
     json_object_object_add(obj, "pid", json_object_new_int(pid));
@@ -56,21 +52,31 @@ void log_syscall(pid_t pid, struct user_regs_struct *regs, int entering, FILE *j
     json_object_object_add(obj, "number", json_object_new_int64(regs->orig_rax));
 
     if (entering) {
+        // Terminal
+        printf("[%s] %s(", timestamp, name);
+        printf("arg1=%p, arg2=%p, arg3=%p", (void *)regs->rdi, (void *)regs->rsi, (void *)regs->rdx);
+        printf(")\n");
+
+        // JSON
         json_object_object_add(obj, "tipo", json_object_new_string("enter"));
         struct json_object *args = json_object_new_object();
-        json_object_object_add(args, "rdi", json_object_new_int64(regs->rdi));
-        json_object_object_add(args, "rsi", json_object_new_int64(regs->rsi));
-        json_object_object_add(args, "rdx", json_object_new_int64(regs->rdx));
+        json_object_object_add(args, "arg1", json_object_new_int64(regs->rdi));
+        json_object_object_add(args, "arg2", json_object_new_int64(regs->rsi));
+        json_object_object_add(args, "arg3", json_object_new_int64(regs->rdx));
         json_object_object_add(obj, "args", args);
     } else {
+        // Terminal
+        printf(" = %lld\n\n", regs->rax);
+
+        // JSON
         json_object_object_add(obj, "tipo", json_object_new_string("exit"));
         json_object_object_add(obj, "retorno", json_object_new_int64(regs->rax));
     }
 
-    // Escreve o JSON no arquivo (1 por linha)
+    // Grava JSON no arquivo
     fprintf(json_file, "%s\n", json_object_to_json_string(obj));
-    fflush(json_file); // Garante escrita imediata
-    json_object_put(obj); // Libera memória
+    fflush(json_file);
+    json_object_put(obj);
 }
 
 int main(int argc, char *argv[]) {
@@ -81,13 +87,14 @@ int main(int argc, char *argv[]) {
 
     pid_t pid = atoi(argv[1]);
 
-    // Abre o arquivo de log JSON (modo append)
+    // Abre o arquivo de log JSON
     FILE *json_file = fopen("syscalls_log.json", "a");
     if (!json_file) {
         perror("Erro ao abrir syscalls_log.json");
         return 1;
     }
 
+    // Anexa ao processo
     if (ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1) {
         perror("ptrace(ATTACH)");
         fclose(json_file);
@@ -120,4 +127,4 @@ int main(int argc, char *argv[]) {
     fclose(json_file);
     printf("Desanexado do PID %d e log salvo em syscalls_log.json\n", pid);
     return 0;
-}
+} 
