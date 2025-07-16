@@ -4,7 +4,7 @@ import socket
 
 def main():
     print(f"[*] Processo de teste PID={os.getpid()} executando syscalls...")
-    time.sleep(30)
+    time.sleep(40)
     
     with open("arquivo_teste.txt", "w") as f:
         f.write("linha 1\nlinha 2\n")

@@ -16,10 +16,22 @@ sudo apt update
 sudo apt install libjson-c-dev
 ```
 
-### Como executar
-```
-    gcc -o logger_attacg logger_attach.c -ljson-c
-    sudo ./logger_attarch <PID>
+### Como compilar e executar
+
+Você pode compilar manualmente ou usar o Makefile já incluso no projeto:
+
+#### Usando o Makefile
+```bash
+make
+sudo ./logger_attach <PID>
 ```
 
-- O script tem como saida um arquivo json com as informações sobre o processo.
+#### Compilação manual
+```bash
+gcc -o logger_attach logger_attach.c -ljson-c
+sudo ./logger_attach <PID>
+```
+
+**Importante:**
+- Substitua `<PID>` pelo número do processo que você deseja monitorar. Você pode descobrir o PID usando o comando `python3 processo.py`.
+- O resultado será salvo no arquivo `syscalls_log.json` no mesmo diretório, além de ser exibido no terminal.
